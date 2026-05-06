@@ -202,6 +202,34 @@ for me to invent. The reference sites are listed so they're easy to track down.
 - **`GPXShareLink`** — overloaded init accepts either a `Trip` or a
   `RecordedRoute`.
 
+## Missing-symbol fill-in (commit `<this>`)
+
+Every type previously listed under "Missing types — not stubbed" now has an
+implementation in the uploaded source:
+
+| Symbol | New file |
+| ------ | -------- |
+| `RTTabBar` | `Features/Shared/RTTabBar.swift` — custom tab bar with material background, brand-tinted selection, light haptic on switch. |
+| `RTSOSPill` | `Features/Shared/RTSOSPill.swift` — red capsule that flips to "Beacon Active" with pulsing wave icon and elapsed time when a beacon is running. |
+| `RTCallForHelpView` | `Features/Shared/RTCallForHelpView.swift` — full-screen distress beacon flow (form → active state with cancel/resolve), wired to `RTBeaconService`. |
+| `RTRankUpCelebrationView` | `Features/Shared/RTRankUpCelebrationView.swift` — rank-tier-coloured gradient, animated badge, "Keep Riding" dismiss. |
+| `VoiceChannelOverlay` | `Features/Shared/VoiceChannelOverlay.swift` — top-floating capsule with current speaker, mic level meter, mute toggle. |
+| `RideBannerOverlay` | `Features/Shared/RideBannerOverlay.swift` — top-floating ride-in-progress banner with elapsed time, distance, quick-journal button, end-ride confirmation. |
+| `SocialFeedView` | `Features/Feed/SocialFeedView.swift` — chronological post feed with author lookup and like state. |
+| `TripMapView` | `Features/Map/TripMapView.swift` — live rider radar, distress beacons, road hazards, memorials on a `MapKit` map. |
+| `CommunityHubView` + `CommunityDestination` + `PublicProfileView` | `Features/Community/CommunityHubView.swift` — segmented Tribes / Events / People with follow toggle on profile detail. |
+| `ProfileView` | `Features/Profile/ProfileView.swift` — current-user header, rank progress bar, garage list, sign-out. |
+| `TripDetailView` | `Features/Trips/TripDetailView.swift` — header, map with polyline, stats, waypoints, journal entries, Start/End ride action, GPX share toolbar. |
+| `CreateTripView` | `Features/Trips/CreateTripView.swift` — title/description/date form. |
+| `TripCardView` | `Features/Trips/TripCardView.swift` — card row used by `RidesHubView`. |
+| `RideWeatherView` | `Features/Weather/RideWeatherView.swift` — current conditions, hourly forecast, alerts, driven by `RoadWeatherService`. |
+| `AppDelegate` | `App/AppDelegate.swift` — `UIApplicationDelegate` stub with shared service properties; routes the CarPlay scene to `CarPlaySceneDelegate`. |
+| `MaintenanceDestination` | already shipped with the maintenance dashboard. |
+
+These are minimum-viable implementations that compile and exercise the
+existing models and services. Visual polish, animations, and asset-cataloged
+colours are deliberately left to the project's design pass.
+
 ## Branch sync
 
 All four refs (`main`, `claude/review-swift-code-6MzqQ`,
