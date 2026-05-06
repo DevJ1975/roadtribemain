@@ -47,11 +47,51 @@ struct GPXExporter {
 
     /// Write GPX to a temporary file and return the URL for sharing.
     static func exportToFile(trip: Trip) throws -> URL {
-        let gpxString = generateGPX(for: trip)
-        let sanitizedName = sanitizedFileName(from: trip.title)
+        try writeGPX(generateGPX(for: trip), titled: trip.title)
+    }
+
+    /// Generate a GPX XML string from a recorded GPS track.
+    static func generateGPX(for route: RecordedRoute) -> String {
+        let iso = ISO8601DateFormatter()
+        var xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <gpx version="1.1" creator="Road Tribe"
+             xmlns="http://www.topografix.com/GPX/1/1">
+          <metadata>
+            <name>\(escapeXML(route.title))</name>
+            <time>\(iso.string(from: route.startDate))</time>
+          </metadata>
+          <trk>
+            <name>\(escapeXML(route.title))</name>
+            <trkseg>
+        """
+
+        for point in route.points {
+            xml += "\n      <trkpt lat=\"\(point.latitude)\" lon=\"\(point.longitude)\">"
+            xml += "\n        <ele>\(point.altitude)</ele>"
+            xml += "\n        <time>\(iso.string(from: point.timestamp))</time>"
+            xml += "\n      </trkpt>"
+        }
+
+        xml += """
+
+            </trkseg>
+          </trk>
+        </gpx>
+        """
+        return xml
+    }
+
+    /// Write a recorded route to a temporary GPX file.
+    static func exportToFile(route: RecordedRoute) throws -> URL {
+        try writeGPX(generateGPX(for: route), titled: route.title)
+    }
+
+    private static func writeGPX(_ contents: String, titled name: String) throws -> URL {
+        let sanitizedName = sanitizedFileName(from: name)
         let fileName = "\(sanitizedName).gpx"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        try gpxString.write(to: url, atomically: true, encoding: .utf8)
+        try contents.write(to: url, atomically: true, encoding: .utf8)
         return url
     }
 

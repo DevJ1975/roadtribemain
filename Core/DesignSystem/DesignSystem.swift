@@ -99,4 +99,8 @@ extension Color {
     /// Fallback brand colour used when the asset catalogue colour isn't loaded
     /// (previews, tests, or when the named colour fails to resolve).
     static let rtPrimaryFallback = Color.orange
+    /// Fallback secondary surface colour for cards and chips.
+    static let rtSurfaceFallback = Color(.secondarySystemBackground)
+    /// Accent colour used in the Discover feature.
+    static let rtDiscoverColor   = Color.indigo
 }

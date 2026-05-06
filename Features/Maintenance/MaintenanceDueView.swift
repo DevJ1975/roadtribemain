@@ -6,11 +6,32 @@
 import SwiftUI
 import SwiftData
 
+/// Navigation destinations for the Maintenance feature. Used as
+/// `NavigationLink` values from the Rides hub toolbar.
+enum MaintenanceDestination: Hashable {
+    case due(Motorcycle)
+
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case .due(let bike):
+            hasher.combine("due")
+            hasher.combine(bike.id)
+        }
+    }
+
+    static func == (lhs: MaintenanceDestination, rhs: MaintenanceDestination) -> Bool {
+        switch (lhs, rhs) {
+        case (.due(let a), .due(let b)): return a.id == b.id
+        }
+    }
+}
+
 /// "What's due" dashboard for a motorcycle's upcoming services.
 struct MaintenanceDueView: View {
     let motorcycle: Motorcycle
 
     @Environment(\.modelContext) private var modelContext
+    @State private var showingFillUpSheet = false
 
     private var items: [MaintenanceDueItem] {
         MaintenanceDueService.upcomingServices(for: motorcycle)
@@ -88,8 +109,41 @@ struct MaintenanceDueView: View {
                     .font(.rtCaption)
                     .foregroundStyle(DesignSystem.Colors.success)
             }
+
+            fuelStatusRow
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var fuelStatusRow: some View {
+        HStack(spacing: Spacing.sm) {
+            if let fraction = motorcycle.remainingFuelFraction(currentMileage: motorcycle.currentMileage) {
+                let pct = Int(fraction * 100)
+                Label("\(pct)% tank · \(Int(motorcycle.remainingRangeMiles(currentMileage: motorcycle.currentMileage))) mi left",
+                      systemImage: "fuelpump.fill")
+                    .font(.rtCaption)
+                    .foregroundStyle(fraction < 0.2
+                                     ? DesignSystem.Colors.danger
+                                     : .secondary)
+            } else {
+                Label("No fill-up recorded", systemImage: "fuelpump")
+                    .font(.rtCaption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Record Fill-up") {
+                showingFillUpSheet = true
+            }
+            .font(.rtCaptionBold)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(.top, Spacing.xs)
+        .sheet(isPresented: $showingFillUpSheet) {
+            RecordFillUpSheet(motorcycle: motorcycle)
+                .presentationDetents([.fraction(0.35), .medium])
+        }
     }
 
     private func row(_ item: MaintenanceDueItem) -> some View {
@@ -139,5 +193,67 @@ struct MaintenanceDueView: View {
             upcomingServices: MaintenanceDueService.reminderTriples(from: upcomingItems)
         )
         DesignSystem.Haptics.success()
+    }
+}
+
+// MARK: - Record fill-up sheet
+
+/// Compact sheet that records a fill-up at the given odometer reading.
+/// Defaults to the motorcycle's current mileage.
+struct RecordFillUpSheet: View {
+    let motorcycle: Motorcycle
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var mileageString: String
+    @State private var date: Date = .now
+
+    init(motorcycle: Motorcycle) {
+        self.motorcycle = motorcycle
+        _mileageString = State(initialValue: "\(motorcycle.currentMileage)")
+    }
+
+    private var parsedMileage: Int? {
+        Int(mileageString.trimmingCharacters(in: .whitespaces))
+    }
+
+    private var canSave: Bool {
+        guard let m = parsedMileage else { return false }
+        return m >= 0
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Odometer") {
+                    TextField("Mileage", text: $mileageString)
+                        .keyboardType(.numberPad)
+                }
+                Section("When") {
+                    DatePicker("Date", selection: $date, in: ...Date.now)
+                }
+            }
+            .navigationTitle("Record Fill-up")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        guard let mileage = parsedMileage else { return }
+                        motorcycle.recordFillUp(at: mileage, on: date)
+                        // Keep currentMileage in sync if fill-up reading is higher.
+                        if mileage > motorcycle.currentMileage {
+                            motorcycle.currentMileage = mileage
+                        }
+                        try? modelContext.save()
+                        DesignSystem.Haptics.success()
+                        dismiss()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
     }
 }

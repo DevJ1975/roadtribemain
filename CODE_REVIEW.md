@@ -178,6 +178,30 @@ for me to invent. The reference sites are listed so they're easy to track down.
   every feature above (~30 cases). The SwiftUI views themselves are not unit
   tested — preview-driven manual verification only.
 
+### Wiring into existing host views
+
+- **`RidesHubView`** — added `@Environment(RideTrackingService.self)` and
+  `@Query Motorcycle` lookups. Toolbar now shows:
+  - a **Quick Note** button (top-leading) while `rideTracking.isRiding`,
+    presenting `QuickJournalCaptureView`
+  - a **wrench icon** (top-trailing) navigating to
+    `MaintenanceDueView(motorcycle:)` when a bike is on file
+  - the existing `+` action is preserved
+- **`MaintenanceDestination`** enum added so the Rides hub's
+  `NavigationStack` can route to the maintenance dashboard.
+- **`RecordedRouteView`** — replaced the inline 4-cell stats row with
+  `RideStatsCard(route:)` (gains elevation), and the inline elevation-gain
+  calc now reads `route.elevationGainFeet`. Toolbar gained `GPXShareLink(route:)`,
+  disabled when the track has no points.
+- **`MaintenanceDueView`** — summary header now shows fuel status (% tank /
+  miles remaining since last fill-up, or "No fill-up recorded") and offers
+  a **Record Fill-up** button presenting `RecordFillUpSheet` — a compact
+  odometer + date form that calls `motorcycle.recordFillUp(at:on:)`.
+- **`GPXExporter`** — gained `generateGPX(for: RecordedRoute)` (with
+  `<ele>` and `<time>` per trkpt) and `exportToFile(route:)`.
+- **`GPXShareLink`** — overloaded init accepts either a `Trip` or a
+  `RecordedRoute`.
+
 ## Branch sync
 
 All four refs (`main`, `claude/review-swift-code-6MzqQ`,

@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import CoreLocation
 @testable import RoadTribe
 
 // MARK: - Formatters
@@ -111,5 +112,31 @@ final class GPXExporterTests: XCTestCase {
         XCTAssertTrue(url.lastPathComponent.hasSuffix(".gpx"))
         let data = try Data(contentsOf: url)
         XCTAssertGreaterThan(data.count, 100)
+    }
+
+    func test_generateGPX_forRecordedRoute_includesElevationAndTimestamps() {
+        let route = RecordedRoute(title: "Sunrise Loop")
+        let location = CLLocation(
+            coordinate: .init(latitude: 37.5, longitude: -122.5),
+            altitude: 123,
+            horizontalAccuracy: 1, verticalAccuracy: 1,
+            course: 0, speed: 5, timestamp: .now
+        )
+        route.points = [RoutePoint(from: location), RoutePoint(from: location)]
+        let xml = GPXExporter.generateGPX(for: route)
+        XCTAssertTrue(xml.contains("Sunrise Loop"))
+        XCTAssertTrue(xml.contains("<ele>123.0</ele>"))
+        XCTAssertTrue(xml.contains("<time>"))
+        XCTAssertTrue(xml.contains("</gpx>"))
+    }
+
+    func test_exportToFile_forRecordedRoute_writesFile() throws {
+        let route = RecordedRoute(title: "T")
+        let url = try GPXExporter.exportToFile(route: route)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertTrue(url.lastPathComponent.hasSuffix(".gpx"))
+        let xml = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(xml.contains("<gpx"))
     }
 }

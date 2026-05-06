@@ -25,8 +25,8 @@ struct RecordedRouteView: View {
                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.large))
                     .padding(.horizontal, Spacing.sm)
 
-                // Stats row
-                statsRow
+                // Stats card (distance / duration / max & avg speed / elevation gain)
+                RideStatsCard(route: route)
                     .padding(.horizontal, Spacing.sm)
 
                 // Speed chart
@@ -43,6 +43,12 @@ struct RecordedRouteView: View {
         }
         .navigationTitle(route.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                GPXShareLink(route: route)
+                    .disabled(points.isEmpty)
+            }
+        }
     }
 
     // MARK: - Route Map
@@ -85,36 +91,6 @@ struct RecordedRouteView: View {
         cameraPosition = .region(MKCoordinateRegion(center: center, span: span))
     }
 
-    // MARK: - Stats Row
-
-    private var statsRow: some View {
-        HStack(spacing: 0) {
-            statCell(icon: "road.lanes", label: "Distance", value: route.formattedDistance)
-            Divider().frame(height: 44)
-            statCell(icon: "clock.fill", label: "Duration", value: route.formattedDuration)
-            Divider().frame(height: 44)
-            statCell(icon: "speedometer", label: "Avg Speed", value: "\(Int(route.avgSpeedMPH)) mph")
-            Divider().frame(height: 44)
-            statCell(icon: "gauge.with.needle.fill", label: "Top Speed", value: "\(Int(route.maxSpeedMPH)) mph")
-        }
-        .padding(Spacing.sm)
-        .background(Color.rtSurfaceFallback, in: RoundedRectangle(cornerRadius: CornerRadius.medium))
-    }
-
-    private func statCell(icon: String, label: String, value: String) -> some View {
-        VStack(spacing: 2) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(Color.rtPrimaryFallback)
-            Text(value)
-                .font(.rtCaptionBold)
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
     // MARK: - Speed Chart
 
     private var speedChart: some View {
@@ -151,40 +127,40 @@ struct RecordedRouteView: View {
 
     // MARK: - Elevation Chart
 
+    @ViewBuilder
     private var elevationChart: some View {
-        let altitudes = points.map { $0.altitude * 3.28084 } // meters → feet
-        guard altitudes.max() ?? 0 > 0 else { return AnyView(EmptyView()) }
-        let gain = max(0, zip(altitudes, altitudes.dropFirst()).map { max(0, $1 - $0) }.reduce(0, +))
-
-        return AnyView(VStack(alignment: .leading, spacing: Spacing.xxs) {
-            HStack {
-                Label("Elevation Profile", systemImage: "mountain.2.fill")
-                    .font(.rtHeadline)
-                Spacer()
-                Text("+\(Int(gain)) ft gain")
-                    .font(.rtCaptionBold)
-                    .foregroundStyle(Color.rtPrimaryFallback)
-            }
-            Chart {
-                ForEach(Array(altitudes.enumerated()), id: \.offset) { index, alt in
-                    AreaMark(
-                        x: .value("Point", index),
-                        y: .value("Feet", alt)
-                    )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.5), Color.blue.opacity(0.1)],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    )
+        let altitudesFeet = points.map { $0.altitude * 3.280_839_895 } // meters → feet
+        if (altitudesFeet.max() ?? 0) > 0 {
+            VStack(alignment: .leading, spacing: Spacing.xxs) {
+                HStack {
+                    Label("Elevation Profile", systemImage: "mountain.2.fill")
+                        .font(.rtHeadline)
+                    Spacer()
+                    Text("+\(Int(route.elevationGainFeet)) ft gain")
+                        .font(.rtCaptionBold)
+                        .foregroundStyle(Color.rtPrimaryFallback)
                 }
+                Chart {
+                    ForEach(Array(altitudesFeet.enumerated()), id: \.offset) { index, alt in
+                        AreaMark(
+                            x: .value("Point", index),
+                            y: .value("Feet", alt)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.5), Color.blue.opacity(0.1)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                    }
+                }
+                .frame(height: 100)
+                .chartXAxis(.hidden)
+                .chartYAxisLabel("ft")
             }
-            .frame(height: 100)
-            .chartXAxis(.hidden)
-            .chartYAxisLabel("ft")
+            .padding(Spacing.sm)
+            .background(Color.rtSurfaceFallback, in: RoundedRectangle(cornerRadius: CornerRadius.medium))
         }
-        .padding(Spacing.sm)
-        .background(Color.rtSurfaceFallback, in: RoundedRectangle(cornerRadius: CornerRadius.medium)))
     }
 }
 

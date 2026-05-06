@@ -10,11 +10,14 @@ import SwiftData
 struct RidesHubView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(LocationService.self) private var locationService
+    @Environment(RideTrackingService.self) private var rideTracking
     @Query(sort: \Trip.startDate, order: .reverse) private var trips: [Trip]
     @Query(sort: \JournalEntry.timestamp, order: .reverse) private var allEntries: [JournalEntry]
+    @Query(sort: \Motorcycle.createdAt) private var motorcycles: [Motorcycle]
     @State private var selectedSegment: RidesSegment = .trips
     @State private var showingCreateTrip = false
     @State private var showingCreateEntry = false
+    @State private var showingQuickCapture = false
     @State private var weatherService = RoadWeatherService()
     @State private var showRideWeather = false
 
@@ -63,6 +66,27 @@ struct RidesHubView: View {
             }
             .navigationTitle("Rides")
             .toolbar {
+                // Quick-capture journal entry — only visible while riding,
+                // pre-fills trip/location/weather context.
+                if rideTracking.isRiding {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingQuickCapture = true
+                        } label: {
+                            Label("Quick Note", systemImage: "square.and.pencil")
+                        }
+                    }
+                }
+
+                // Maintenance dashboard — only when the rider has a bike on file.
+                if let primaryBike = motorcycles.first {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: MaintenanceDestination.due(primaryBike)) {
+                            Image(systemName: "wrench.and.screwdriver")
+                        }
+                    }
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         if selectedSegment == .trips {
@@ -81,6 +105,9 @@ struct RidesHubView: View {
             .sheet(isPresented: $showingCreateEntry) {
                 CreateJournalEntryView()
             }
+            .sheet(isPresented: $showingQuickCapture) {
+                QuickJournalCaptureView(weatherService: weatherService)
+            }
             .fullScreenCover(isPresented: $showRideWeather) {
                 RideWeatherView()
             }
@@ -89,6 +116,12 @@ struct RidesHubView: View {
             }
             .navigationDestination(for: JournalEntry.self) { entry in
                 JournalEntryDetailView(entry: entry)
+            }
+            .navigationDestination(for: MaintenanceDestination.self) { dest in
+                switch dest {
+                case .due(let bike):
+                    MaintenanceDueView(motorcycle: bike)
+                }
             }
         }
     }
