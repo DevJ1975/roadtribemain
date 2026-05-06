@@ -1,0 +1,140 @@
+# Code Review — `claude/review-swift-code-6MzqQ`
+
+Audit, refactor, and test pass over the uploaded Swift source set.
+
+## TL;DR
+
+- **72 Swift files, ~8,500 LOC** were reviewed end-to-end.
+- **One real crash**, **one logic bug**, and a handful of hardening fixes were
+  applied — all on the working branch.
+- A duplicated meters-to-miles haversine helper was factored into a shared
+  utility (`MeasurementConstants` + `CoordinatePathMath`).
+- **Critical gap surfaced**: `RankTier`, `DesignSystem`, several SwiftUI
+  views, and a few helpers referenced throughout the source were *not in the
+  uploaded files*. The codebase as uploaded does not compile. `RankTier` and a
+  placeholder `DesignSystem` were added; the missing SwiftUI views are listed
+  below as TODOs (not stubbed because they involve too many design decisions).
+- ~150 unit tests added across 9 XCTest files under `Tests/RoadTribeTests/`.
+- Branch state: `main`, `claude/review-swift-code-6MzqQ`, and both `origin/*`
+  branches all started at the same commit (`84a617d`) — there were no
+  divergent branches to merge.
+
+## Bugs fixed
+
+### 1. `Dictionary(uniqueKeysWithValues:)` crash on duplicate profile IDs
+
+**File**: `Core/Services/SocialService.swift`
+
+Original code traps if any two profiles share an ID — possible during SwiftData
+syncs or when inserting mock data alongside a live record:
+
+```swift
+Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+```
+
+Replaced with the uniqueing-keys variant that keeps the first profile.
+
+### 2. Wheel straight (A-2-3-4-5) misclassified by `PokerHandEvaluator`
+
+**File**: `Core/Models/PokerRun.swift`
+
+With ranks sorted descending, A-2-3-4-5 became `[14, 5, 4, 3, 2]`, and the
+strict consecutive-difference check rejected it as a non-straight. Added an
+explicit wheel-straight branch and tightened the standard-straight test to
+also require five distinct ranks (so something like `[14, 5, 5, 4, 3]` doesn't
+slip through). The Royal Flush check was narrowed to the high (10-J-Q-K-A)
+straight — the wheel suited still resolves to "Straight Flush".
+
+### 3. Negative-duration formatter
+
+**File**: `Core/Models/RecordedRoute.swift`
+
+`formattedDuration` produced "-1m" if `endDate < startDate`. Now clamps to
+zero. The underlying `durationSeconds` value is unchanged.
+
+## Hardening / edge-case fixes
+
+| File | Change |
+| ---- | ------ |
+| `Core/Models/Motorcycle.swift` | `estimatedRange` returns `0` for non-positive capacity or MPG instead of producing a negative or zero range silently. |
+| `Core/Services/NotificationService.swift` | `scheduleMaintenanceReminder` clamps `averageDailyMiles` to `>= 1` before dividing — protects against zero or negative values from a corrupt/fresh model. |
+| `Core/Services/FuelAlertService.swift` | Guards on `estimatedRange == 0`. The threshold logic was confusing (`> warningThreshold * 0.75`) — rewritten to a single intuitive rule: warn when the nearest gas station is more than 15% of the bike's full-tank range away. |
+| `Core/Services/RTBeaconService.swift` | Elapsed-timer task now captures `[weak self]`. |
+| `Core/Models/RoadHazard.swift` | Magic 86400 replaced with a named `expirationInterval` constant. Uses `Date.now` consistently. |
+| `Core/Models/RiderPresence.swift` | Magic 300-second stale window replaced with a named `staleAfter` constant. |
+| `Core/Utilities/GPXExporter.swift` | Filename sanitiser strips control characters and the full set of filesystem-reserved chars, and falls back to `"trip"` when the title sanitises to empty (otherwise the file would have been hidden as `.gpx`). |
+
+## Refactor — deduplicated math
+
+A new file `Core/Utilities/MeasurementConstants.swift` introduces:
+
+- `MeasurementConstants.metersPerMile`, `mphPerMps`, `secondsPerDay`,
+  `movingSpeedThresholdMPH`
+- Convenience `Double` extensions: `.metersToMiles`, `.milesToMeters`,
+  `.mpsToMph`
+- `CoordinatePathMath.distanceMeters([CLLocationCoordinate2D])` /
+  `.distanceMiles([CLLocationCoordinate2D])`
+
+These replace the duplicated haversine-via-`CLLocation.distance` loops and
+hard-coded `1609.344` / `2.23694` constants in:
+
+- `Core/Models/Trip.swift` (`totalDistanceMiles`)
+- `Core/Models/RecordedRoute.swift` (`distanceMiles`, `RoutePoint.speedMPH`,
+  `avgSpeedMPH` threshold)
+- `Core/Services/LocationService.swift` (`currentSpeedMPH`)
+- `Core/Services/FuelAlertService.swift` (distance conversion)
+- `Core/Services/NotificationService.swift` (seconds-per-day)
+
+## New files
+
+| Path | Purpose |
+| ---- | ------- |
+| `Core/Models/RankTier.swift` | Full implementation of the rider rank system (Prospect → Legend) inferred from `RTRankEvent`/`RTXPService`/`UserProfile` callsites. Persistent raw values are explicit and ordered. |
+| `Core/DesignSystem/DesignSystem.swift` | **Placeholder** for `DesignSystem.Spacing`, `Colors`, `Icons`, `Haptics` plus `Spacing` / `CornerRadius` typealiases and `Font.rt*` extensions. Replace with the project's authoritative tokens before shipping. |
+| `Core/Utilities/MeasurementConstants.swift` | Shared distance/speed/time constants and helpers. |
+| `Tests/RoadTribeTests/*.swift` | ~150 unit tests across 9 files. See `Tests/RoadTribeTests/README.md` for setup. |
+
+## Missing types — not stubbed
+
+These are referenced by the uploaded code but have no definition in the
+uploaded files. They were likely outside the upload scope. If they don't exist
+in the wider project, they need to be created — they are too view-design-dependent
+for me to invent. The reference sites are listed so they're easy to track down.
+
+| Symbol | Referenced from |
+| ------ | --------------- |
+| `AppDelegate` (with `locationService`, `voiceChannelService`, `rideTrackingService` properties) | `App/CarPlaySceneDelegate.swift` |
+| `CommunityDestination` (enum with `.publicProfile(UserProfile)`) | `App/AppRouter.swift` |
+| `RTTabBar(selectedTab:)` | `ContentView.swift` |
+| `RTSOSPill` | `ContentView.swift` |
+| `RTCallForHelpView` | `ContentView.swift` |
+| `RTRankUpCelebrationView(fromRank:toRank:totalXP:)` | `ContentView.swift` |
+| `VoiceChannelOverlay`, `RideBannerOverlay` | `ContentView.swift` |
+| `SocialFeedView`, `TripMapView`, `CommunityHubView`, `ProfileView` | `ContentView.swift` |
+
+## Notable findings I did *not* change
+
+- `Core/Services/SupabaseService.swift` exposes a Supabase URL and a
+  *publishable* key. The publishable key is intended to be public, so this is
+  fine — but consider moving them to an `Info.plist` value or build-time
+  configuration so the URL isn't tied to source.
+- `Core/Services/PersistenceService.swift` deletes the entire on-disk store
+  when migration fails. Acceptable during development, but ship-blocker
+  before a public release — replace with proper `SchemaMigrationPlan`.
+- `Core/Services/MockDataSeeder.swift` is wired to run automatically inside
+  `seed(context:)` whenever the database is empty, including in production.
+  Consider gating with a debug flag.
+- `RTXPService.addXP(_:source:profile:context:)` accepts `amount` but never
+  reads `XPSource.baseXP` — callers must pass the value explicitly. A
+  `addXP(from source: XPSource)` convenience that pulls `source.baseXP`
+  would prevent drift between the source's base value and the awarded amount.
+- `RiderRadarService.loadNearbyPresences` auto-seeds mock presence data when
+  empty — fine for previews/early demos, but should be gated before launch so
+  it doesn't seed real users' devices.
+
+## Branch sync
+
+All four refs (`main`, `claude/review-swift-code-6MzqQ`,
+`origin/main`, `origin/claude/review-swift-code-6MzqQ`) pointed at commit
+`84a617d` before this work — there was nothing to merge. After committing the
+review work, the working branch is fast-forwardable into `main` cleanly.
