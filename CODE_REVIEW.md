@@ -132,6 +132,52 @@ for me to invent. The reference sites are listed so they're easy to track down.
   empty — fine for previews/early demos, but should be gated before launch so
   it doesn't seed real users' devices.
 
+## Quick-win features (added in a follow-up commit)
+
+### 1. Fuel-level tracking
+- `Motorcycle` gained `lastFillUpMileage` / `lastFillUpDate`, plus
+  `milesSinceFillUp(currentMileage:)`, `remainingRangeMiles(currentMileage:)`,
+  `remainingFuelFraction(currentMileage:)`, and `recordFillUp(at:on:)`.
+- `FuelAlertService.evaluate` now uses real remaining range when a fill-up has
+  been recorded (falls back to full-tank estimate otherwise).
+- Decision rule extracted as `FuelAlertService.shouldWarn(distanceToStationMiles:remainingRangeMiles:)`
+  for clean unit testing — warns when the station is ≥ 60% of remaining range away.
+
+### 2. Maintenance due dashboard
+- New `Core/Services/MaintenanceDueService.swift` — pure-logic. `upcomingServices(for:)`
+  returns `[MaintenanceDueItem]` sorted by miles-until-due, with overdue / upcoming
+  flags. `reminderTriples(from:)` adapts the result to the shape
+  `NotificationService.scheduleReminders(for:upcomingServices:)` already accepts.
+- New `Features/Maintenance/MaintenanceDueView.swift` — list view with Overdue / Coming
+  Up / On the Horizon sections and a "Remind Me" toolbar action that funnels through
+  the existing `NotificationService`.
+
+### 3. Trip stats summary
+- `RouteElevation.gainMeters(altitudes:)` added to `MeasurementConstants.swift` —
+  sums positive altitude deltas only.
+- `RecordedRoute` exposes `elevationGainMeters` / `elevationGainFeet`.
+- New `Features/Rides/RideStatsCard.swift` — drop-in summary card showing
+  distance, duration, max & avg speed, elevation gain, and point count.
+
+### 4. Quick journal capture
+- `CreateJournalEntryView` accepts an optional `JournalEntryPrefill` (title,
+  content, mood, trip, location/coords, weather string). Existing call sites
+  using `CreateJournalEntryView()` continue to work.
+- New `Features/Journal/QuickJournalCaptureView.swift` — sheet content for the
+  ride banner. Pulls active trip from `RideTrackingService`, current GPS &
+  reverse-geocoded location from `LocationService`, and current conditions from
+  `RoadWeatherService`. Title-suggestion logic is a static pure helper for tests.
+
+### 5. GPX share sheet
+- New `Features/Rides/GPXShareLink.swift` — wraps `ShareLink` with
+  `GPXExporter.exportToFile`. Provides `ExportedGPX: Transferable` and a
+  convenience initialiser for the standard "Share GPX" label.
+
+### Tests
+- `Tests/RoadTribeTests/FeatureTests.swift` covers the testable surface of
+  every feature above (~30 cases). The SwiftUI views themselves are not unit
+  tested — preview-driven manual verification only.
+
 ## Branch sync
 
 All four refs (`main`, `claude/review-swift-code-6MzqQ`,

@@ -32,6 +32,20 @@ extension Double {
     var mpsToMph: Double { self * MeasurementConstants.mphPerMps }
 }
 
+enum RouteElevation {
+    /// Cumulative ascent in metres for an ordered series of altitude
+    /// readings — positive deltas only. Returns 0 for fewer than two points.
+    static func gainMeters(altitudes: [Double]) -> Double {
+        guard altitudes.count >= 2 else { return 0 }
+        var total: Double = 0
+        for i in 1..<altitudes.count {
+            let delta = altitudes[i] - altitudes[i - 1]
+            if delta > 0 { total += delta }
+        }
+        return total
+    }
+}
+
 enum CoordinatePathMath {
     /// Total path length in metres for a sequence of coordinates.
     /// Returns 0 for fewer than two points.

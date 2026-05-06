@@ -9,21 +9,51 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 
+/// Optional pre-filled data for `CreateJournalEntryView` — used by the
+/// quick-capture flow off the ride banner so we don't make the rider type
+/// the trip name and weather every time.
+struct JournalEntryPrefill {
+    var title: String = ""
+    var content: String = ""
+    var mood: JournalMood?
+    var trip: Trip?
+    var locationName: String?
+    var latitude: Double?
+    var longitude: Double?
+    var weatherDescription: String?
+}
+
 /// A form to create a new journal entry.
 struct CreateJournalEntryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Trip.startDate, order: .reverse) private var trips: [Trip]
 
-    @State private var title = ""
-    @State private var content = ""
+    @State private var title: String
+    @State private var content: String
     @State private var selectedMood: JournalMood?
     @State private var selectedTrip: Trip?
+
+    private let prefilledLocationName: String?
+    private let prefilledLatitude: Double?
+    private let prefilledLongitude: Double?
+    private let prefilledWeather: String?
 
     // Photo state
     @State private var photosPickerItems: [PhotosPickerItem] = []
     @State private var capturedPhotos: [Data] = []
     @State private var showingCamera = false
+
+    init(prefill: JournalEntryPrefill = JournalEntryPrefill()) {
+        _title         = State(initialValue: prefill.title)
+        _content       = State(initialValue: prefill.content)
+        _selectedMood  = State(initialValue: prefill.mood)
+        _selectedTrip  = State(initialValue: prefill.trip)
+        prefilledLocationName = prefill.locationName
+        prefilledLatitude     = prefill.latitude
+        prefilledLongitude    = prefill.longitude
+        prefilledWeather      = prefill.weatherDescription
+    }
 
     private var isValid: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -166,8 +196,12 @@ struct CreateJournalEntryView: View {
         let entry = JournalEntry(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             content: content.trimmingCharacters(in: .whitespacesAndNewlines),
+            latitude: prefilledLatitude,
+            longitude: prefilledLongitude,
+            locationName: prefilledLocationName,
             photoDataItems: capturedPhotos,
-            mood: selectedMood
+            mood: selectedMood,
+            weatherDescription: prefilledWeather
         )
         if let selectedTrip {
             entry.trip = selectedTrip

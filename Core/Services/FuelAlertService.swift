@@ -55,11 +55,9 @@ final class FuelAlertService {
         let estimatedRange = bike.estimatedRange   // miles (full tank estimate)
         guard estimatedRange > 0 else { return }   // can't reason about range with no MPG/capacity
 
-        // We don't track actual fuel level yet, so we use the bike's estimated
-        // full-tank range as a proxy for "how far you can go before refilling".
-        // Trigger an alert when the nearest gas station is >= 15% of that range
-        // away — i.e. you'd burn a meaningful chunk of a tank just reaching gas.
-        let warningDistanceMiles = estimatedRange * 0.15
+        // Use the real remaining range when a fill-up has been recorded,
+        // otherwise fall back to the full-tank estimate.
+        let remainingRange = bike.remainingRangeMiles(currentMileage: bike.currentMileage)
 
         let region = location.region(span: 0.3)
         guard let stations = try? await mapService.searchByCategory(.gasStation, region: region),
@@ -71,16 +69,28 @@ final class FuelAlertService {
         nearestStation = nearest
         nearestStationDistanceMiles = distanceMiles
 
-        if distanceMiles > warningDistanceMiles {
+        if FuelAlertService.shouldWarn(distanceToStationMiles: distanceMiles,
+                                       remainingRangeMiles: remainingRange) {
             alert = FuelAlert(
                 bikeName: bike.name,
-                estimatedRangeMiles: estimatedRange,
+                estimatedRangeMiles: remainingRange,
                 nearestStationName: nearest.name ?? "Gas Station",
                 nearestStationDistanceMiles: distanceMiles
             )
         } else if alert != nil {
             alert = nil
         }
+    }
+
+    /// Pure decision rule extracted for testability.
+    ///
+    /// Warn when the nearest station eats more than 60% of the rider's
+    /// remaining range — at that point getting to gas is no longer a
+    /// margin-of-safety problem, it's the whole problem.
+    static func shouldWarn(distanceToStationMiles: Double,
+                           remainingRangeMiles: Double) -> Bool {
+        guard remainingRangeMiles > 0 else { return false }
+        return distanceToStationMiles >= remainingRangeMiles * 0.6
     }
 }
 

@@ -17,12 +17,13 @@ enum DesignSystem {
     // MARK: - Spacing
 
     enum Spacing {
-        static let xxs: CGFloat = 2
-        static let xs:  CGFloat = 6
-        static let sm:  CGFloat = 10
-        static let md:  CGFloat = 16
-        static let lg:  CGFloat = 24
-        static let xl:  CGFloat = 32
+        static let xxxs: CGFloat = 1
+        static let xxs:  CGFloat = 3
+        static let xs:   CGFloat = 6
+        static let sm:   CGFloat = 10
+        static let md:   CGFloat = 16
+        static let lg:   CGFloat = 24
+        static let xl:   CGFloat = 32
 
         static let tabBarHeight: CGFloat = 56
     }
@@ -87,6 +88,15 @@ extension Font {
     static let rtTitle       = Font.title.weight(.bold)
     static let rtHeadline    = Font.headline
     static let rtBody        = Font.body
+    static let rtCallout     = Font.callout
     static let rtCaption     = Font.caption
     static let rtCaptionBold = Font.caption.weight(.semibold)
+}
+
+// MARK: - Brand Colours
+
+extension Color {
+    /// Fallback brand colour used when the asset catalogue colour isn't loaded
+    /// (previews, tests, or when the named colour fails to resolve).
+    static let rtPrimaryFallback = Color.orange
 }

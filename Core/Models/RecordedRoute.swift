@@ -54,6 +54,17 @@ final class RecordedRoute {
         return moving.reduce(0, +) / Double(moving.count)
     }
 
+    /// Cumulative ascent in metres — sum of positive altitude deltas only.
+    /// Returns 0 for routes with fewer than two points.
+    var elevationGainMeters: Double {
+        RouteElevation.gainMeters(altitudes: points.map(\.altitude))
+    }
+
+    /// Cumulative ascent in feet.
+    var elevationGainFeet: Double {
+        elevationGainMeters * 3.280_839_895
+    }
+
     /// Duration in seconds.
     var durationSeconds: TimeInterval {
         guard let end = endDate else { return 0 }
