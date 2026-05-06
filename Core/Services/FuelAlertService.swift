@@ -53,9 +53,13 @@ final class FuelAlertService {
 
     private func evaluate(bike: Motorcycle, location: CLLocationCoordinate2D) async {
         let estimatedRange = bike.estimatedRange   // miles (full tank estimate)
-        // Use 80% of range as the "remaining" assumption (we don't track actual fuel level)
-        // A more advanced version would track mileage since last fill-up
-        let warningThresholdMiles = estimatedRange * 0.20   // warn when < 20% range left
+        guard estimatedRange > 0 else { return }   // can't reason about range with no MPG/capacity
+
+        // We don't track actual fuel level yet, so we use the bike's estimated
+        // full-tank range as a proxy for "how far you can go before refilling".
+        // Trigger an alert when the nearest gas station is >= 15% of that range
+        // away — i.e. you'd burn a meaningful chunk of a tank just reaching gas.
+        let warningDistanceMiles = estimatedRange * 0.15
 
         let region = location.region(span: 0.3)
         guard let stations = try? await mapService.searchByCategory(.gasStation, region: region),
@@ -63,22 +67,19 @@ final class FuelAlertService {
               let nearestLocation = nearest.placemark.location else { return }
 
         let userCL = CLLocation(latitude: location.latitude, longitude: location.longitude)
-        let distanceMeters = nearestLocation.distance(from: userCL)
-        let distanceMiles = distanceMeters / 1609.344
+        let distanceMiles = nearestLocation.distance(from: userCL).metersToMiles
         nearestStation = nearest
         nearestStationDistanceMiles = distanceMiles
 
-        if distanceMiles > warningThresholdMiles * 0.75 {
-            // Far from any gas station relative to remaining range — alert
+        if distanceMiles > warningDistanceMiles {
             alert = FuelAlert(
                 bikeName: bike.name,
                 estimatedRangeMiles: estimatedRange,
                 nearestStationName: nearest.name ?? "Gas Station",
                 nearestStationDistanceMiles: distanceMiles
             )
-        } else {
-            // Plenty of range — clear any existing alert
-            if alert != nil { alert = nil }
+        } else if alert != nil {
+            alert = nil
         }
     }
 }

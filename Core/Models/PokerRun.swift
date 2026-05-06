@@ -129,11 +129,19 @@ struct PokerHandEvaluator {
         let values = cards.map(\.rank.pokerValue).sorted(by: >)
         let suits = Set(cards.map(\.suit))
         let isFlush = suits.count == 1
-        let isStraight = zip(values, values.dropFirst()).allSatisfy { $0 - $1 == 1 }
+
+        // Standard straight: five distinct consecutive ranks.
+        let standardStraight = Set(values).count == 5
+            && zip(values, values.dropFirst()).allSatisfy { $0 - $1 == 1 }
+        // Wheel straight: A-2-3-4-5 (ace plays low).
+        let wheelStraight = values == [14, 5, 4, 3, 2]
+        let isStraight = standardStraight || wheelStraight
+
         let grouped = Dictionary(grouping: values, by: { $0 }).mapValues(\.count)
         let counts = grouped.values.sorted(by: >)
 
-        if isFlush && isStraight && values.first == 14 { return "Royal Flush" }
+        // Royal flush is only the *high* straight flush — exclude the wheel.
+        if isFlush && standardStraight && values.first == 14 { return "Royal Flush" }
         if isFlush && isStraight { return "Straight Flush" }
         if counts == [4, 1] { return "Four of a Kind" }
         if counts == [3, 2] { return "Full House" }

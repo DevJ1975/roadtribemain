@@ -71,7 +71,9 @@ final class SocialService {
     }
 
     /// Build a UUID → UserProfile dictionary for O(1) lookups in ForEach.
+    /// Duplicate IDs (which can happen briefly during SwiftData syncs) keep
+    /// the first profile rather than trapping.
     func profileLookup(from profiles: [UserProfile]) -> [UUID: UserProfile] {
-        Dictionary(uniqueKeysWithValues: profiles.map { ($0.id, $0) })
+        Dictionary(profiles.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }

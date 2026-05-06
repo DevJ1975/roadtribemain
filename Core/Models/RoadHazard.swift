@@ -25,8 +25,10 @@ final class RoadHazard {
     }
 
     /// Hazards expire after 24 hours.
+    static let expirationInterval: TimeInterval = MeasurementConstants.secondsPerDay
+
     var isExpired: Bool {
-        Date().timeIntervalSince(timestamp) > 86400
+        Date.now.timeIntervalSince(timestamp) > Self.expirationInterval
     }
 
     init(

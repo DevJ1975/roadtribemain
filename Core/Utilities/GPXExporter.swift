@@ -48,13 +48,23 @@ struct GPXExporter {
     /// Write GPX to a temporary file and return the URL for sharing.
     static func exportToFile(trip: Trip) throws -> URL {
         let gpxString = generateGPX(for: trip)
-        let sanitizedName = trip.title
-            .replacingOccurrences(of: " ", with: "_")
-            .replacingOccurrences(of: "/", with: "-")
+        let sanitizedName = sanitizedFileName(from: trip.title)
         let fileName = "\(sanitizedName).gpx"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         try gpxString.write(to: url, atomically: true, encoding: .utf8)
         return url
+    }
+
+    /// Produces a non-empty, filesystem-safe stem for the GPX file name.
+    static func sanitizedFileName(from title: String) -> String {
+        let invalid = CharacterSet(charactersIn: "/\\:*?\"<>|")
+            .union(.controlCharacters)
+        let sanitized = title
+            .components(separatedBy: invalid)
+            .joined(separator: "-")
+            .replacingOccurrences(of: " ", with: "_")
+            .trimmingCharacters(in: .init(charactersIn: "._-"))
+        return sanitized.isEmpty ? "trip" : sanitized
     }
 
     private static func escapeXML(_ string: String) -> String {

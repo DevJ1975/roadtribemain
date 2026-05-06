@@ -48,10 +48,12 @@ final class NotificationService {
         content.sound = .default
         content.categoryIdentifier = "MAINTENANCE_REMINDER"
 
-        // Estimate days until due based on average daily riding
-        let estimatedDays = max(1, Int(Double(milesUntilDue) / averageDailyMiles))
+        // Estimate days until due based on average daily riding.
+        // Guard against zero/negative miles-per-day so we don't divide by zero or by a negative.
+        let dailyMiles = max(1, averageDailyMiles)
+        let estimatedDays = max(1, Int(Double(milesUntilDue) / dailyMiles))
         // Notify 2 days before estimated due date, minimum 1 hour from now
-        let notifyInSeconds = max(3600, TimeInterval((estimatedDays - 2) * 86400))
+        let notifyInSeconds = max(3600, TimeInterval((estimatedDays - 2)) * MeasurementConstants.secondsPerDay)
 
         let trigger = UNTimeIntervalNotificationTrigger(
             timeInterval: notifyInSeconds,

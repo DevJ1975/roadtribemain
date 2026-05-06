@@ -43,8 +43,11 @@ final class RiderPresence {
         self.avatarImageName = avatarImageName
     }
 
-    /// Whether this presence record is recent enough to display (< 5 minutes old).
+    /// Maximum age of a presence record before it's considered stale.
+    static let staleAfter: TimeInterval = 5 * 60
+
+    /// Whether this presence record is too old to display.
     var isStale: Bool {
-        Date.now.timeIntervalSince(lastUpdated) > 300
+        Date.now.timeIntervalSince(lastUpdated) > Self.staleAfter
     }
 }

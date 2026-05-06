@@ -25,7 +25,7 @@ final class LocationService: NSObject {
     /// Current speed in MPH, nil if not available.
     var currentSpeedMPH: Int? {
         guard currentSpeedMPS >= 0 else { return nil }
-        return Int(currentSpeedMPS * 2.23694)
+        return Int(currentSpeedMPS.mpsToMph)
     }
 
     /// Current heading in degrees (0–360), nil if unavailable.

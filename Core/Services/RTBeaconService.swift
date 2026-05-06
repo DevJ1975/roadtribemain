@@ -71,11 +71,11 @@ final class RTBeaconService {
 
     private func startElapsedTimer() {
         timerTask?.cancel()
-        timerTask = Task {
+        timerTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { break }
-                beaconElapsedSeconds += 1
+                guard !Task.isCancelled, let self else { break }
+                self.beaconElapsedSeconds += 1
             }
         }
     }

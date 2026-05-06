@@ -37,15 +37,7 @@ final class RecordedRoute {
 
     /// Total distance in miles.
     var distanceMiles: Double {
-        let pts = points
-        guard pts.count >= 2 else { return 0 }
-        var total: CLLocationDistance = 0
-        for i in 1..<pts.count {
-            let a = CLLocation(latitude: pts[i-1].latitude, longitude: pts[i-1].longitude)
-            let b = CLLocation(latitude: pts[i].latitude, longitude: pts[i].longitude)
-            total += b.distance(from: a)
-        }
-        return total / 1609.344
+        CoordinatePathMath.distanceMiles(points.map(\.coordinate))
     }
 
     /// Max speed recorded in MPH.
@@ -55,7 +47,9 @@ final class RecordedRoute {
 
     /// Average speed in MPH (excluding stopped points).
     var avgSpeedMPH: Double {
-        let moving = points.filter { $0.speedMPH > 3 }.map(\.speedMPH)
+        let moving = points
+            .map(\.speedMPH)
+            .filter { $0 > MeasurementConstants.movingSpeedThresholdMPH }
         guard !moving.isEmpty else { return 0 }
         return moving.reduce(0, +) / Double(moving.count)
     }
@@ -71,8 +65,9 @@ final class RecordedRoute {
     }
 
     var formattedDuration: String {
-        let h = Int(durationSeconds) / 3600
-        let m = (Int(durationSeconds) % 3600) / 60
+        let total = max(0, Int(durationSeconds))
+        let h = total / 3600
+        let m = (total % 3600) / 60
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
 }
@@ -86,7 +81,7 @@ struct RoutePoint: Codable {
     let speedMPS: Double    // meters per second (negative = invalid)
 
     var speedMPH: Double {
-        speedMPS > 0 ? speedMPS * 2.23694 : 0
+        speedMPS > 0 ? speedMPS.mpsToMph : 0
     }
 
     var coordinate: CLLocationCoordinate2D {

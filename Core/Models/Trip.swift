@@ -59,16 +59,7 @@ final class Trip {
     /// Total route distance in miles, calculated from sequential waypoint coordinates.
     var totalDistanceMiles: Double {
         let sorted = waypoints.sorted { $0.sortOrder < $1.sortOrder }
-        guard sorted.count >= 2 else { return 0 }
-
-        var total: Double = 0
-        for i in 1..<sorted.count {
-            let from = CLLocation(latitude: sorted[i - 1].latitude, longitude: sorted[i - 1].longitude)
-            let to = CLLocation(latitude: sorted[i].latitude, longitude: sorted[i].longitude)
-            total += to.distance(from: from)
-        }
-        // Convert meters to miles
-        return total / 1609.344
+        return CoordinatePathMath.distanceMiles(sorted.map(\.coordinate))
     }
 
     /// Formatted distance string (e.g., "1,243 mi").

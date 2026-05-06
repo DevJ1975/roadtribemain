@@ -59,8 +59,9 @@ final class Motorcycle {
         self.maintenanceRecords = []
     }
 
-    /// Estimated full-tank range in miles.
+    /// Estimated full-tank range in miles. Returns 0 when capacity or MPG is non-positive.
     var estimatedRange: Double {
-        fuelCapacityGallons * averageMPG
+        guard fuelCapacityGallons > 0, averageMPG > 0 else { return 0 }
+        return fuelCapacityGallons * averageMPG
     }
 }
